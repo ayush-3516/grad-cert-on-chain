@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
-import { GraduationCap, CheckCircle, Award, ArrowRight } from "lucide-react";
+import { GraduationCap, CheckCircle, Award, ArrowRight, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
 import { useWallet } from "@/context/WalletContext";
