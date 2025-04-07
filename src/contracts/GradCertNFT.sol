@@ -44,7 +44,7 @@ contract GradCertNFT is ERC721URIStorage, AccessControl {
     }
 
     function revokeCertificate(uint256 tokenId) public onlyRole(MINTER_ROLE) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "Token does not exist or caller is not owner nor approved");
         _certificates[tokenId].revoked = true;
     }
 
@@ -54,7 +54,7 @@ contract GradCertNFT is ERC721URIStorage, AccessControl {
         uint256 issueDate,
         bool revoked
     ) {
-        require(_exists(tokenId), "Token does not exist");
+        require(_ownerOf(tokenId) != address(0), "Token does not exist");
         Certificate memory cert = _certificates[tokenId];
         return (
             cert.studentId,
