@@ -4,13 +4,10 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract GradCertNFT is ERC721URIStorage, AccessControl {
-    using Counters for Counters.Counter;
-    
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    Counters.Counter private _tokenIdCounter;
+    uint256 private _nextTokenId;
     
     struct Certificate {
         string documentHash;
@@ -32,8 +29,8 @@ contract GradCertNFT is ERC721URIStorage, AccessControl {
         string memory documentHash,
         string memory filebaseURI
     ) public onlyRole(MINTER_ROLE) {
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
+        uint256 tokenId = _nextTokenId;
+        _nextTokenId++;
         
         _safeMint(to, tokenId);
         _certificates[tokenId] = Certificate({
