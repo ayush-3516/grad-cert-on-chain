@@ -2,6 +2,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/context/WalletContext";
+import { useConnect } from "@thirdweb-dev/react";
 
 interface ConnectWalletModalProps {
   isOpen: boolean;
@@ -10,10 +11,21 @@ interface ConnectWalletModalProps {
 
 const ConnectWalletModal = ({ isOpen, onClose }: ConnectWalletModalProps) => {
   const { connectWallet } = useWallet();
+  const connect = useConnect();
 
   const handleConnect = async (walletType: string) => {
-    await connectWallet();
-    onClose();
+    try {
+      if (walletType === 'metamask') {
+        // Use thirdweb's connect method with the metamask connector
+        await connectWallet();
+      } else if (walletType === 'walletconnect') {
+        // Use thirdweb's connect method with the walletconnect connector
+        await connectWallet();
+      }
+      onClose();
+    } catch (error) {
+      console.error(`Error connecting with ${walletType}:`, error);
+    }
   };
 
   return (
