@@ -9,7 +9,7 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import StudentPortal from "./pages/StudentPortal";
 import VerifierPortal from "./pages/VerifierPortal";
-import WalletContextProvider from "./context/WalletContext";
+import { WalletProvider } from "./context/WalletContext";
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { BaseSepoliaTestnet } from "@thirdweb-dev/chains";
 
@@ -21,7 +21,7 @@ const App = () => (
     clientId={import.meta.env.VITE_THIRDWEB_CLIENT_ID || ""}
   >
     <QueryClientProvider client={queryClient}>
-      <WalletContextProvider>
+      <WalletProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -35,7 +35,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </WalletContextProvider>
+      </WalletProvider>
     </QueryClientProvider>
   </ThirdwebProvider>
 );

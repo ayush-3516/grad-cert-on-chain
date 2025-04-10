@@ -4,19 +4,11 @@ import Navbar from "@/components/Navbar";
 import { useWallet } from "@/context/WalletContext";
 import { Button } from "@/components/ui/button";
 import CertificateCard from "@/components/CertificateCard";
+import type { Certificate } from "@/components/CertificateCard";
 import CertificateModal from "@/components/CertificateModal";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
 import { AlertCircle } from "lucide-react";
-
-interface Certificate {
-  id: string;
-  name: string;
-  degree: string;
-  year: string;
-  regNo?: string;
-  tokenId?: string;
-  contractAddress?: string;
-}
+import { getOwnedCertificates } from "@/services/contractService";
 
 const StudentPortal = () => {
   const { isConnected, walletAddress } = useWallet();
@@ -32,47 +24,28 @@ const StudentPortal = () => {
     }
   }, [isConnected, walletAddress]);
 
-  // Simulate fetching certificates from blockchain
   const fetchCertificates = async () => {
     setLoading(true);
     try {
-      // In a real implementation:
-      // 1. Query blockchain for NFTs owned by the connected wallet
-      // 2. Fetch metadata for each NFT
-      // 3. Format the data for display
-      
-      // Mock data for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Randomly decide whether to show certificates or empty state
-      const hasCertificates = Math.random() > 0.3;
-      
-      if (hasCertificates) {
-        setCertificates([
-          {
-            id: "1",
-            name: "John Doe",
-            degree: "Bachelor of Science in Computer Science",
-            year: "2023",
-            regNo: "2023CS1234",
-            tokenId: "123456789012345678901234567890",
-            contractAddress: "0x1234567890123456789012345678901234567890"
-          },
-          {
-            id: "2",
-            name: "John Doe",
-            degree: "Master of Science in Artificial Intelligence",
-            year: "2025",
-            regNo: "2025AI5678",
-            tokenId: "098765432112345678901234567890",
-            contractAddress: "0x1234567890123456789012345678901234567890"
-          }
-        ]);
-      } else {
+      if (!walletAddress) {
         setCertificates([]);
+        return;
       }
+      
+      const ownedCerts = await getOwnedCertificates(walletAddress);
+      // Transform contract data to match CertificateCard expected format
+      const transformedCerts = ownedCerts.map(cert => ({
+        id: cert.tokenId,
+        name: "Student", // Placeholder - would come from metadata in real implementation
+        degree: "Degree", // Placeholder
+        year: new Date().getFullYear().toString(), // Using current year as placeholder
+        tokenId: cert.tokenId,
+        contractAddress: cert.contractAddress
+      }));
+      setCertificates(transformedCerts);
     } catch (error) {
       console.error("Error fetching certificates:", error);
+      setCertificates([]);
     } finally {
       setLoading(false);
     }

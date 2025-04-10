@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useWallet } from "@/context/WalletContext";
+import { uploadToPinata } from "@/lib/pinataClient";
+import { getContract } from "@/services/contractService";
 import { toast } from "@/components/ui/use-toast";
 import { Check, Upload, AlertCircle } from "lucide-react";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
 
 const AdminDashboard = () => {
-  const { isConnected, isAdmin } = useWallet();
+  const { isConnected, isAdmin, wallet } = useWallet();
   const [showConnectModal, setShowConnectModal] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -48,6 +50,8 @@ const AdminDashboard = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('[AdminDashboard] Form submission started', formData);
+    
     // Validation
     if (!formData.fullName || !formData.registrationNumber || !formData.degreeTitle || 
         !formData.yearOfPassing || !formData.walletAddress || !formData.certificateFile) {
@@ -63,13 +67,25 @@ const AdminDashboard = () => {
     
     // Simulate API call and blockchain interaction
     try {
-      // In a real implementation:
-      // 1. Upload PDF to Filebase
-      // 2. Create metadata JSON
-      // 3. Upload metadata to Filebase
-      // 4. Call smart contract to mint NFT
+      // 1. Upload certificate file to IPFS
+      console.log('[AdminDashboard] Uploading certificate to IPFS...');
+      const fileResult = await uploadToPinata(formData.certificateFile!, {
+        studentId: formData.registrationNumber,
+        studentName: formData.fullName,
+        degree: formData.degreeTitle,
+        institution: "Academic Institution",
+        issueDate: new Date().toISOString()
+      });
+
+      // 2. Call contract to mint NFT
+      console.log('[AdminDashboard] Minting certificate NFT...');
+      const contract = await getContract(wallet.signer);
+      const tx = await contract.call("issueDegree", [
+        formData.walletAddress,
+        fileResult.gatewayUrl
+      ]);
       
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('[AdminDashboard] Certificate minted! Transaction hash:', tx.receipt.transactionHash);
       
       setIsSuccess(true);
       toast({
@@ -100,6 +116,8 @@ const AdminDashboard = () => {
       setIsSubmitting(false);
     }
   };
+  
+  console.log('[AdminDashboard] Render - isConnected:', isConnected, 'isAdmin:', isAdmin);
   
   if (!isConnected) {
     return (

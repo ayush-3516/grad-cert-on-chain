@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { GraduationCap, FileText } from "lucide-react";
 
-interface Certificate {
+export interface Certificate {
   id: string;
   name: string;
   degree: string;
