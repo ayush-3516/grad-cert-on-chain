@@ -93,7 +93,8 @@ export const getOwnedCertificates = async (walletAddress: string, signer?: Signe
   }
 };
 
-import { uploadToPinata } from "@/lib/pinataClient";
+import { uploadToPinata, verifyPinataCredentials } from "@/lib/pinataClient";
+import { initEthersContractService } from "./ethersContractService";
 
 interface CertificateMetadata {
   studentId: string;
@@ -101,49 +102,111 @@ interface CertificateMetadata {
   degree: string;
   institution: string;
   issueDate?: Date;
+  yearOfPassing?: string;
+  name?: string;
 }
 
 export const uploadCertificateToPinata = async (file: File, metadata: CertificateMetadata) => {
   try {
-    // Upload file to Pinata
+    // 0. Verify Pinata credentials first
+    const credentialsValid = await verifyPinataCredentials();
+    if (!credentialsValid) {
+      throw new Error('Invalid Pinata credentials - please check your API keys and JWT token');
+    }
+
+    // 1. Upload the PDF file
     const fileResult = await uploadToPinata(file, {
-      studentId: metadata.studentId,
-      studentName: metadata.studentName,
-      degree: metadata.degree,
-      institution: metadata.institution,
-      issueDate: metadata.issueDate?.toISOString()
+      name: `${metadata.studentName}_${metadata.studentId}_certificate.pdf`,
+      keyvalues: {
+        studentId: metadata.studentId,
+        studentName: metadata.studentName,
+        degree: metadata.degree,
+        institution: metadata.institution,
+        yearOfPassing: metadata.yearOfPassing,
+        issueDate: metadata.issueDate?.toISOString()
+      }
     });
 
-    // Prepare metadata with file URL
-    const fullMetadata = {
-      ...metadata,
-      file_url: fileResult.gatewayUrl
+    // 2. Create metadata JSON with file reference
+    const certificateMetadata = {
+      name: `${metadata.studentName}'s Degree Certificate`,
+      description: `${metadata.degree} awarded to ${metadata.studentName}`,
+      image: fileResult.gatewayUrl,
+      attributes: [
+        {
+          trait_type: "Student ID",
+          value: metadata.studentId
+        },
+        {
+          trait_type: "Degree",
+          value: metadata.degree
+        },
+        {
+          trait_type: "Institution",
+          value: metadata.institution
+        },
+        {
+          trait_type: "Year of Passing",
+          value: metadata.yearOfPassing
+        }
+      ],
+      external_url: fileResult.gatewayUrl
     };
 
-    // Create metadata JSON blob
-    const metadataBlob = new Blob([JSON.stringify(fullMetadata)], {
+    // 3. Upload metadata JSON
+    const metadataBlob = new Blob([JSON.stringify(certificateMetadata)], {
       type: 'application/json'
     });
-
-    // Upload metadata to Pinata
     const metadataFile = new File(
       [metadataBlob],
-      `${file.name.replace(/\.[^/.]+$/, '')}.json`
+      `${metadata.studentId}_metadata.json`
     );
     const metadataResult = await uploadToPinata(metadataFile, {
-      studentId: fullMetadata.studentId,
-      studentName: fullMetadata.studentName,
-      degree: fullMetadata.degree,
-      institution: fullMetadata.institution,
-      issueDate: fullMetadata.issueDate?.toISOString()
+      name: `${metadata.studentId}_metadata.json`,
+      keyvalues: {
+        studentId: metadata.studentId,
+        studentName: metadata.studentName,
+        degree: metadata.degree,
+        institution: metadata.institution,
+        yearOfPassing: metadata.yearOfPassing,
+        issueDate: metadata.issueDate?.toISOString(),
+        type: "certificate_metadata"
+      }
     });
 
     return {
       fileUri: fileResult.gatewayUrl,
-      metadataUri: metadataResult.gatewayUrl
+      metadataUri: metadataResult.gatewayUrl,
+      ipfsHash: metadataResult.ipfsHash
     };
   } catch (error) {
     console.error("Error uploading to Pinata:", error);
+    throw error;
+  }
+};
+
+export const issueCertificate = async (
+  toAddress: string,
+  file: File,
+  metadata: CertificateMetadata
+) => {
+  try {
+    // 1. Upload certificate and metadata to Pinata
+    const { metadataUri, ipfsHash } = await uploadCertificateToPinata(file, metadata);
+    
+    // 2. Initialize contract service
+    const contractService = await initEthersContractService();
+    
+    // 3. Mint NFT with the metadata URI
+    const tokenId = await contractService.issueDegree(toAddress, metadataUri);
+    
+    return {
+      tokenId: tokenId.toString(),
+      ipfsHash,
+      metadataUri
+    };
+  } catch (error) {
+    console.error("Error issuing certificate:", error);
     throw error;
   }
 };

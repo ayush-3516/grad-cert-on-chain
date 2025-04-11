@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -7,14 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useWallet } from "@/context/WalletContext";
-import { uploadToPinata } from "@/lib/pinataClient";
-import { getContract } from "@/services/contractService";
+import { uploadCertificateToPinata } from "@/services/contractService";
+import { EthersContractService } from "@/services/ethersContractService";
 import { toast } from "@/components/ui/use-toast";
 import { Check, Upload, AlertCircle } from "lucide-react";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
 
 const AdminDashboard = () => {
-  const { isConnected, isAdmin, wallet } = useWallet();
+  const { isConnected, isAdmin, provider: wallet } = useWallet();
   const [showConnectModal, setShowConnectModal] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -62,35 +61,59 @@ const AdminDashboard = () => {
       });
       return;
     }
+
+    // Validate wallet address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(formData.walletAddress)) {
+      toast({
+        title: "Invalid Wallet Address",
+        description: "Please enter a valid Ethereum wallet address",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setIsSubmitting(true);
     
-    // Simulate API call and blockchain interaction
     try {
-      // 1. Upload certificate file to IPFS
+      // 1. Upload certificate file and metadata to IPFS
+      toast({
+        title: "Uploading Certificate",
+        description: "Uploading certificate to IPFS...",
+      });
+      
       console.log('[AdminDashboard] Uploading certificate to IPFS...');
-      const fileResult = await uploadToPinata(formData.certificateFile!, {
+      const { metadataUri } = await uploadCertificateToPinata(formData.certificateFile!, {
         studentId: formData.registrationNumber,
         studentName: formData.fullName,
         degree: formData.degreeTitle,
         institution: "Academic Institution",
-        issueDate: new Date().toISOString()
+        issueDate: new Date(),
+        yearOfPassing: formData.yearOfPassing
       });
 
       // 2. Call contract to mint NFT
-      console.log('[AdminDashboard] Minting certificate NFT...');
-      const contract = await getContract(wallet.signer);
-      const tx = await contract.call("issueDegree", [
-        formData.walletAddress,
-        fileResult.gatewayUrl
-      ]);
+      toast({
+        title: "Minting NFT",
+        description: "Issuing certificate NFT...",
+      });
       
-      console.log('[AdminDashboard] Certificate minted! Transaction hash:', tx.receipt.transactionHash);
+      console.log('[AdminDashboard] Minting certificate NFT...');
+      if (!wallet) {
+        throw new Error('Wallet provider not available');
+      }
+
+      const contractService = new EthersContractService(wallet, wallet.getSigner());
+      const tokenId = await contractService.issueDegree(
+        formData.walletAddress,
+        metadataUri
+      );
+      
+      console.log('[AdminDashboard] Certificate minted! Token ID:', tokenId);
       
       setIsSuccess(true);
       toast({
         title: "Success!",
-        description: `Certificate NFT successfully minted and issued to ${formData.walletAddress}`,
+        description: `Certificate NFT #${tokenId} successfully issued to ${formData.walletAddress}`,
       });
       
       // Reset form after success
@@ -102,18 +125,25 @@ const AdminDashboard = () => {
         walletAddress: "",
         certificateFile: null
       });
-      
-      // Reset success state after a delay
-      setTimeout(() => setIsSuccess(false), 3000);
     } catch (error) {
       console.error("Error minting certificate:", error);
+      let errorMessage = "Failed to mint certificate NFT";
+      if (error instanceof Error) {
+        if (error.message.includes('user rejected transaction')) {
+          errorMessage = "Transaction was rejected by user";
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = "Insufficient funds for transaction";
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to mint certificate NFT",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => setIsSuccess(false), 3000);
     }
   };
   

@@ -6,6 +6,7 @@ interface WalletContextType {
   address: string | null;
   isConnected: boolean;
   isAdmin: boolean;
+  provider: ethers.providers.Web3Provider | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   signMessage: (message: string) => Promise<string>;
@@ -26,45 +27,55 @@ const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
   const connectWallet = async () => {
     try {
-      // Universal wallet detection
-      const ethereum = window.ethereum || (window as unknown as {web3?: {currentProvider?: unknown}}).web3?.currentProvider;
-      if (!ethereum) {
-        throw new Error('Please install an Ethereum wallet');
+      if (!window.ethereum) {
+        // Prompt user to install MetaMask
+        window.open('https://metamask.io/download.html', '_blank');
+        throw new Error('MetaMask not detected - please install it');
       }
 
-      // Initialize provider
-      const web3Provider = new ethers.providers.Web3Provider(ethereum);
+      // Check if already connected
+      const existingAccounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (existingAccounts.length > 0) {
+        const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+        setAddress(existingAccounts[0]);
+        setProvider(web3Provider);
+        await checkAdminStatus(existingAccounts[0]);
+        return;
+      }
+
+      // Request connection
+      const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
       
       // Request accounts - works with any EIP-1193 compliant wallet
-      const accounts = await web3Provider.send('eth_requestAccounts', []);
-      console.log('[Wallet] Received accounts:', accounts);
+      const connectedAccounts = await web3Provider.send('eth_requestAccounts', []);
+      console.log('[Wallet] Received accounts:', connectedAccounts);
 
-      if (!accounts || accounts.length === 0) {
+      if (!connectedAccounts || connectedAccounts.length === 0) {
         console.error('[Wallet] No accounts found');
         throw new Error('No accounts found');
       }
 
-      setAddress(accounts[0]);
+      setAddress(connectedAccounts[0]);
       setProvider(web3Provider);
-      await checkAdminStatus(accounts[0]);
-      console.log('[Wallet] Set address and provider:', accounts[0], web3Provider);
+      await checkAdminStatus(connectedAccounts[0]);
+      console.log('[Wallet] Set address and provider:', connectedAccounts[0], web3Provider);
 
       // Setup event listeners
       // Clean up previous listeners
       // Clean up and setup listeners
-      ethereum.removeAllListeners();
+      window.ethereum.removeAllListeners();
       
-      ethereum.on('accountsChanged', async (newAccounts: string[]) => {
-        console.log('[Wallet] Accounts changed:', newAccounts);
-        if (newAccounts.length > 0) {
-          setAddress(newAccounts[0]);
+      window.ethereum.on('accountsChanged', async (changedAccounts: string[]) => {
+        console.log('[Wallet] Accounts changed:', changedAccounts);
+        if (changedAccounts.length > 0) {
+          setAddress(changedAccounts[0]);
           const newProvider = new ethers.providers.Web3Provider(window.ethereum);
           setProvider(newProvider);
-          await checkAdminStatus(newAccounts[0]);
-          console.log('[Wallet] Updated address and provider:', newAccounts[0], newProvider);
+          await checkAdminStatus(changedAccounts[0]);
+          console.log('[Wallet] Updated address and provider:', changedAccounts[0], newProvider);
           toast({
             title: 'Account Changed',
-            description: `Switched to ${newAccounts[0].slice(0, 6)}...${newAccounts[0].slice(-4)}`,
+            description: `Switched to ${changedAccounts[0].slice(0, 6)}...${changedAccounts[0].slice(-4)}`,
           });
         } else {
           disconnectWallet();
@@ -73,7 +84,7 @@ const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
       toast({
         title: 'Wallet Connected',
-        description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
+        description: `Connected to ${connectedAccounts[0].slice(0, 6)}...${connectedAccounts[0].slice(-4)}`,
       });
     } catch (error) {
       toast({
@@ -104,6 +115,7 @@ const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         address,
         isConnected: !!address,
         isAdmin,
+        provider,
         connectWallet,
         disconnectWallet,
         signMessage
