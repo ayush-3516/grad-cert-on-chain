@@ -5,13 +5,13 @@ import { useWallet } from "@/context/WalletContext";
 import { Button } from "@/components/ui/button";
 import CertificateCard from "@/components/CertificateCard";
 import type { Certificate } from "@/components/CertificateCard";
+import { AlertCircle, Loader2 } from "lucide-react";
 import CertificateModal from "@/components/CertificateModal";
 import ConnectWalletModal from "@/components/ConnectWalletModal";
-import { AlertCircle } from "lucide-react";
 import { getOwnedCertificates } from "@/services/contractService";
 
 const StudentPortal = () => {
-  const { isConnected, walletAddress } = useWallet();
+  const { isConnected, address: walletAddress } = useWallet();
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,11 +36,15 @@ const StudentPortal = () => {
       // Transform contract data to match CertificateCard expected format
       const transformedCerts = ownedCerts.map(cert => ({
         id: cert.tokenId,
-        name: "Student", // Placeholder - would come from metadata in real implementation
-        degree: "Degree", // Placeholder
-        year: new Date().getFullYear().toString(), // Using current year as placeholder
+        name: cert.name,
+        degree: cert.degree,
+        year: cert.year,
+        institution: cert.institution,
+        isValid: cert.isValid,
         tokenId: cert.tokenId,
-        contractAddress: cert.contractAddress
+        contractAddress: cert.contractAddress,
+        metadataURI: cert.metadataURI,
+        imageUrl: cert.imageUrl
       }));
       setCertificates(transformedCerts);
     } catch (error) {

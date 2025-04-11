@@ -7,18 +7,18 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { ethers } from "ethers";
 import { AlertCircle, CheckCircle, Search } from "lucide-react";
+import { EthersContractService } from "@/services/ethersContractService";
+import { CONTRACT_ADDRESS } from "@/services/ethersContractService";
 import CertificateModal from "@/components/CertificateModal";
 
 interface Certificate {
   id: string;
-  name: string;
-  degree: string;
-  year: string;
-  regNo?: string;
-  tokenId?: string;
-  contractAddress?: string;
-  isValid?: boolean;
+  tokenId: string;
+  metadataURI: string;
+  contractAddress: string;
+  isValid: boolean;
 }
 
 const VerifierPortal = () => {
@@ -42,35 +42,60 @@ const VerifierPortal = () => {
     setIsVerified(null);
     
     try {
-      // In a real implementation:
-      // 1. Query blockchain for the NFT based on search criteria
-      // 2. Verify ownership and authenticity
-      // 3. Fetch and display metadata
+      let certificate: Certificate | null = null;
+      let isValid = false;
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock data - randomly decide if certificate is found and valid
-      const found = Math.random() > 0.3;
-      
-      if (found) {
-        const mockCertificate: Certificate = {
-          id: "1",
-          name: "John Doe",
-          degree: "Bachelor of Science in Computer Science",
-          year: "2023",
-          regNo: "2023CS1234",
-          tokenId: searchType === "token" ? tokenId : "123456789012345678901234567890",
-          contractAddress: "0x1234567890123456789012345678901234567890",
-          isValid: Math.random() > 0.2 // Randomly determine validity
-        };
-        
-        setSearchResult(mockCertificate);
-        setIsVerified(mockCertificate.isValid);
-      } else {
-        setSearchResult(null);
-        setIsVerified(false);
+      if (!window.ethereum) {
+        throw new Error('Please install MetaMask or another Web3 wallet');
       }
+      
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contractService = new EthersContractService(provider);
+      
+      if (searchType === "wallet") {
+        console.debug('[Verifier] Fetching certificates for wallet:', walletAddress);
+        const certs = await contractService.getOwnerCertificates(walletAddress);
+        console.debug('[Verifier] Raw certificates response:', certs);
+        
+        if (certs.length > 0) {
+          // For demo, just show first certificate
+          const cert = certs[0];
+          console.debug('[Verifier] Processing first certificate:', cert);
+          
+          const details = await contractService.getCertificateDetails(cert.tokenId);
+          certificate = {
+            id: cert.tokenId.toString(),
+            tokenId: cert.tokenId.toString(),
+            metadataURI: details.metadataURI,
+            contractAddress: CONTRACT_ADDRESS,
+            isValid: cert.isValid
+          };
+          isValid = cert.isValid;
+          
+          console.debug('[Verifier] Formatted certificate:', certificate);
+        } else {
+          console.debug('[Verifier] No certificates found for wallet');
+        }
+      } else {
+        console.debug('[Verifier] Fetching certificate details for token:', tokenId);
+        const cert = await contractService.getCertificateDetails(BigInt(tokenId));
+        console.debug('[Verifier] Certificate details:', cert);
+        
+        isValid = await contractService.isValidCertificate(BigInt(tokenId));
+        console.debug('[Verifier] Certificate validity:', isValid);
+        
+        const details = await contractService.getCertificateDetails(BigInt(tokenId));
+        certificate = {
+          id: tokenId,
+          tokenId,
+          metadataURI: details.metadataURI,
+          contractAddress: CONTRACT_ADDRESS,
+          isValid
+        };
+      }
+      
+      setSearchResult(certificate);
+      setIsVerified(isValid);
     } catch (error) {
       console.error("Error verifying certificate:", error);
       setIsVerified(false);
@@ -196,21 +221,14 @@ const VerifierPortal = () => {
                         {searchResult && (
                           <>
                             <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm mb-4">
-                              <span className="text-gray-600">Name:</span>
-                              <span className="font-medium">{searchResult.name}</span>
+                              <span className="text-gray-600">Token ID:</span>
+                              <span className="font-medium">{searchResult.tokenId}</span>
                               
-                              <span className="text-gray-600">Degree:</span>
-                              <span>{searchResult.degree}</span>
+                              <span className="text-gray-600">Metadata URI:</span>
+                              <span className="truncate">{searchResult.metadataURI}</span>
                               
-                              <span className="text-gray-600">Year:</span>
-                              <span>{searchResult.year}</span>
-                              
-                              {searchResult.regNo && (
-                                <>
-                                  <span className="text-gray-600">Reg No:</span>
-                                  <span>{searchResult.regNo}</span>
-                                </>
-                              )}
+                              <span className="text-gray-600">Contract:</span>
+                              <span className="truncate">{searchResult.contractAddress}</span>
                             </div>
                             
                             <Button 

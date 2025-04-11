@@ -8,7 +8,12 @@ export interface Certificate {
   name: string;
   degree: string;
   year: string;
-  tokenId?: string;
+  institution: string;
+  isValid: boolean;
+  tokenId: string;
+  imageUrl?: string;
+  metadataURI?: string;
+  contractAddress?: string;
 }
 
 interface CertificateCardProps {
@@ -33,7 +38,16 @@ const CertificateCard = ({ certificate, onViewDetails, isStudent = false }: Cert
       <CardContent className="text-center space-y-2">
         <div className="text-gray-600">
           <p className="font-medium">{certificate.name}</p>
-          <p className="text-sm text-gray-500">Class of {certificate.year}</p>
+          <p className="text-sm text-gray-500">{certificate.institution}</p>
+          <p className="text-xs text-gray-400">Class of {certificate.year}</p>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <span className={`inline-block w-2 h-2 rounded-full ${
+            certificate.isValid ? 'bg-green-500' : 'bg-red-500'
+          }`}></span>
+          <span className="text-xs text-gray-500">
+            {certificate.isValid ? 'Valid' : 'Revoked'}
+          </span>
         </div>
         {certificate.tokenId && (
           <div className="text-xs text-gray-500 mt-2">

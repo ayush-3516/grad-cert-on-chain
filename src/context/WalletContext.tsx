@@ -20,9 +20,11 @@ const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const checkAdminStatus = async (addr: string) => {
-    // Replace with actual admin wallet address
-    const ADMIN_WALLET = '0x1ea146e99cA78FeAA9D32fDD669E40974C3a2C2D';
-    setIsAdmin(addr.toLowerCase() === ADMIN_WALLET.toLowerCase());
+    const ADMIN_WALLETS = [
+      '0x1ea146e99cA78FeAA9D32fDD669E40974C3a2C2D', // Original admin
+      '0x6A7cBB9EdF7cd1b8034BA037618b37B386D83ab7'  // Deployer address
+    ];
+    setIsAdmin(ADMIN_WALLETS.some(wallet => addr.toLowerCase() === wallet.toLowerCase()));
   };
 
   const connectWallet = async () => {

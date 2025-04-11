@@ -1,17 +1,7 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FileText, ExternalLink } from "lucide-react";
-
-interface Certificate {
-  id: string;
-  name: string;
-  degree: string;
-  year: string;
-  regNo?: string;
-  tokenId?: string;
-  contractAddress?: string;
-}
+import type { Certificate } from "@/components/CertificateCard";
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -39,48 +29,44 @@ const CertificateModal = ({ isOpen, onClose, certificate }: CertificateModalProp
           
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium text-gray-500">Name:</span>
-              <span className="col-span-2 font-medium">{certificate.name}</span>
+              <span className="text-sm font-medium text-gray-500">Token ID:</span>
+              <span className="col-span-2 font-mono">{certificate.tokenId}</span>
             </div>
             
-            <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium text-gray-500">Degree:</span>
-              <span className="col-span-2">{certificate.degree}</span>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2 items-center">
-              <span className="text-sm font-medium text-gray-500">Year:</span>
-              <span className="col-span-2">{certificate.year}</span>
-            </div>
-            
-            {certificate.regNo && (
+            {certificate.metadataURI && (
               <div className="grid grid-cols-3 gap-2 items-center">
-                <span className="text-sm font-medium text-gray-500">Reg No:</span>
-                <span className="col-span-2">{certificate.regNo}</span>
-              </div>
-            )}
-            
-            {certificate.tokenId && (
-              <div className="grid grid-cols-3 gap-2 items-center">
-                <span className="text-sm font-medium text-gray-500">Token ID:</span>
-                <span className="col-span-2 text-sm font-mono">{certificate.tokenId}</span>
+                <span className="text-sm font-medium text-gray-500">Metadata URI:</span>
+                <span className="col-span-2 font-mono truncate">{certificate.metadataURI}</span>
               </div>
             )}
             
             {certificate.contractAddress && (
               <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="text-sm font-medium text-gray-500">Contract:</span>
-                <span className="col-span-2 text-sm font-mono truncate">
-                  {certificate.contractAddress}
-                </span>
+                <span className="col-span-2 font-mono truncate">{certificate.contractAddress}</span>
               </div>
             )}
+            
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-sm font-medium text-gray-500">Status:</span>
+              <span className="col-span-2">
+                {certificate.isValid ? (
+                  <span className="text-green-600">Valid</span>
+                ) : (
+                  <span className="text-red-600">Revoked</span>
+                )}
+              </span>
+            </div>
           </div>
           
           <div className="flex justify-center mt-6">
-            <Button className="flex items-center gap-2 bg-academic-primary hover:bg-academic-secondary">
+            <Button 
+              className="flex items-center gap-2 bg-academic-primary hover:bg-academic-secondary"
+              onClick={() => window.open(certificate.metadataURI, '_blank')}
+              disabled={!certificate.metadataURI}
+            >
               <ExternalLink size={16} />
-              View PDF Certificate
+              View Certificate
             </Button>
           </div>
         </div>

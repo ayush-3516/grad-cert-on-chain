@@ -97,4 +97,33 @@ export const verifyPinataCredentials = async () => {
   }
 };
 
+interface CertificateMetadata {
+  name: string;
+  description: string;
+  image: string;
+  attributes: Array<{
+    trait_type: string;
+    value: string;
+  }>;
+  external_url: string;
+}
+
+export const fetchMetadata = async (ipfsUri: string): Promise<CertificateMetadata> => {
+  try {
+    // Handle both ipfs:// and gateway URLs
+    const url = ipfsUri.startsWith('ipfs://') 
+      ? `${gatewayUrl}/ipfs/${ipfsUri.slice(7)}`
+      : ipfsUri;
+
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching metadata from IPFS:", {
+      uri: ipfsUri,
+      error: error.response?.data || error.message
+    });
+    throw error;
+  }
+};
+
 export default pinataClient;

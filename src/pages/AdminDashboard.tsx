@@ -133,6 +133,8 @@ const AdminDashboard = () => {
           errorMessage = "Transaction was rejected by user";
         } else if (error.message.includes('insufficient funds')) {
           errorMessage = "Insufficient funds for transaction";
+        } else if (error.message.includes('Student already has a certificate')) {
+          errorMessage = "This student already has a certificate issued to their wallet address";
         }
       }
       

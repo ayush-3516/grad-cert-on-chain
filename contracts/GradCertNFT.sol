@@ -151,4 +151,18 @@ contract GradCertNFT is ERC721Enumerable, Ownable {
         }
         return certs;
     }
+
+    function getCertificateDetails(uint256 tokenId) external view returns (Certificate memory) {
+        require(_exists(tokenId), "Token does not exist");
+        return Certificate({
+            tokenId: tokenId,
+            metadataURI: tokenURI(tokenId),
+            isValid: validCertificates[tokenId]
+        });
+    }
+
+    function getCertificateOwner(uint256 tokenId) external view returns (address) {
+        require(_exists(tokenId), "Token does not exist");
+        return ownerOf(tokenId);
+    }
 }

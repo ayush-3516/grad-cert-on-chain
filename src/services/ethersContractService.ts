@@ -6,7 +6,7 @@ import {
 import GradCertNFTArtifact from '../../artifacts/contracts/GradCertNFT.sol/GradCertNFT.json';
 
 // Contract address on Base Sepolia (chainId 84532)
-const CONTRACT_ADDRESS = "0x633ED3960A49Ec467403e4260b253dC896Fc2144";
+export const CONTRACT_ADDRESS = "0xCA36cd776d4A438a7894225299052ED9FEA53028";
 
 interface Certificate {
   tokenId: bigint;
@@ -18,15 +18,9 @@ export class EthersContractService {
   private contract: Contract;
   private provider: ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider;
   private signer?: ethers.Signer;
+  private static BASE_SEPOLIA_CHAIN_ID = 84532;
 
   constructor(provider: ethers.providers.JsonRpcProvider | ethers.providers.Web3Provider, signer?: ethers.Signer) {
-    // Base Sepolia chain ID
-    const BASE_SEPOLIA_CHAIN_ID = 84532;
-    
-    if (provider.network?.chainId !== BASE_SEPOLIA_CHAIN_ID) {
-      throw new Error(`Please connect to Base Sepolia (chainId ${BASE_SEPOLIA_CHAIN_ID})`);
-    }
-    
     this.provider = provider;
     this.signer = signer;
     this.contract = new ethers.Contract(
@@ -34,6 +28,40 @@ export class EthersContractService {
       GradCertNFTArtifact.abi as ContractInterface,
       signer || provider
     );
+  }
+
+  async verifyNetwork() {
+    try {
+      console.debug('[Storage] Starting network verification...');
+      const network = await this.provider.getNetwork();
+      const currentChainId = network.chainId;
+      
+      console.debug('[Storage] Network details:', {
+        name: network.name,
+        chainId: currentChainId,
+        ensAddress: network.ensAddress
+      });
+
+      console.debug('[Storage] Verifying chain ID:', {
+        expected: EthersContractService.BASE_SEPOLIA_CHAIN_ID,
+        actual: currentChainId,
+        match: Number(currentChainId) === Number(EthersContractService.BASE_SEPOLIA_CHAIN_ID)
+      });
+
+      if (Number(currentChainId) !== Number(EthersContractService.BASE_SEPOLIA_CHAIN_ID)) {
+        console.error('[Storage] Network verification failed - wrong chain ID');
+        throw new Error(`Please connect to Base Sepolia (chainId ${EthersContractService.BASE_SEPOLIA_CHAIN_ID}). Current chain ID: ${currentChainId}`);
+      }
+
+      console.debug('[Storage] Network verification successful');
+      return true;
+    } catch (error) {
+      console.error('[Storage] Network verification error:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
   }
 
   async getOwnerCertificates(ownerAddress: string): Promise<Certificate[]> {
@@ -82,28 +110,27 @@ export class EthersContractService {
         throw new Error("Student already has a certificate");
       }
 
-      // Check if caller has minter role
-      const MINTER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MINTER_ROLE"));
-      const hasRole = await this.contract.hasRole(MINTER_ROLE, await this.signer.getAddress());
-      if (!hasRole) {
-        throw new Error("Caller does not have minter role");
+      // Check if caller is contract owner
+      const owner = await this.contract.owner();
+      const caller = await this.signer.getAddress();
+      if (owner !== caller) {
+        throw new Error("Caller is not the contract owner");
       }
 
       const tx = await this.contract.issueDegree(toAddress, metadataURI);
       console.debug('[Storage] Transaction submitted:', tx.hash);
       
-      await tx.wait();
-      console.debug('[Storage] Transaction confirmed');
+      const receipt = await tx.wait();
+      console.debug('[Storage] Transaction confirmed in block:', receipt.blockNumber);
       
-      // Get the tokenId from the emitted event
-      const filter = this.contract.filters.CertificateIssued(toAddress);
-      const events = await this.contract.queryFilter(filter, 'latest');
-      if (events.length > 0) {
-        const tokenId = events[0].args.tokenId;
+      // Get the token ID by checking the latest certificate for this address
+      const certs = await this.contract.getOwnerCertificates(toAddress);
+      if (certs.length > 0) {
+        const tokenId = certs[certs.length - 1].tokenId;
         console.debug(`[Storage] Certificate issued with tokenId: ${tokenId}`);
         return tokenId;
       }
-      throw new Error("Certificate issued but event not found");
+      throw new Error("Certificate mint verification failed - no certificates found");
     } catch (error) {
       console.error("[Storage] Error issuing degree:", error);
       throw error;
@@ -131,21 +158,28 @@ export class EthersContractService {
   async getCertificateDetails(tokenId: bigint): Promise<Certificate> {
     try {
       console.debug(`[Storage] Fetching details for certificate: ${tokenId}`);
-      const [metadataURI, isValid] = await Promise.all([
-        this.contract.tokenURI(tokenId),
-        this.contract.isValidCertificate(tokenId)
-      ]);
-      
-      const details = {
-        tokenId,
-        metadataURI,
-        isValid
-      };
+      const details = await this.contract.getCertificateDetails(tokenId);
       
       console.debug(`[Storage] Certificate ${tokenId} details:`, details);
-      return details;
+      return {
+        tokenId: details.tokenId,
+        metadataURI: details.metadataURI,
+        isValid: details.isValid
+      };
     } catch (error) {
       console.error("[Storage] Error getting certificate details:", error);
+      throw error;
+    }
+  }
+
+  async getCertificateOwner(tokenId: bigint): Promise<string> {
+    try {
+      console.debug(`[Storage] Fetching owner for certificate: ${tokenId}`);
+      const owner = await this.contract.getCertificateOwner(tokenId);
+      console.debug(`[Storage] Certificate ${tokenId} owner: ${owner}`);
+      return owner;
+    } catch (error) {
+      console.error("[Storage] Error getting certificate owner:", error);
       throw error;
     }
   }

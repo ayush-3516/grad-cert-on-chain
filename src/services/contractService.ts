@@ -2,8 +2,8 @@
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import { Signer } from "ethers";
 
-// Contract address on Base (chainId 84532)
-const CONTRACT_ADDRESS = "0x633ED3960A49Ec467403e4260b253dC896Fc2144";
+// Contract address on Base Sepolia (chainId 84532)
+const CONTRACT_ADDRESS = "0xCA36cd776d4A438a7894225299052ED9FEA53028";
 
 export const getSDK = async (signer?: Signer) => {
   if (signer) {
@@ -79,21 +79,55 @@ export const getOwnedCertificates = async (walletAddress: string, signer?: Signe
     const contract = await getContract(signer);
     const certs = await contract.call("getOwnerCertificates", [walletAddress]) as ContractCertificate[];
     
-    return certs.map((cert) => ({
-      tokenId: cert.tokenId.toString(),
-      contractAddress: CONTRACT_ADDRESS,
-      studentId: "N/A", // Not available in contract
-      documentHash: "N/A", // Not available in contract 
-      issueDate: new Date(), // Using current date as placeholder
-      revoked: !cert.isValid
-    }));
+    const certificatesWithMetadata = await Promise.all(
+      certs.map(async (cert) => {
+        try {
+          const metadata = await fetchMetadata(cert.metadataURI);
+          const studentName = metadata.attributes.find(a => a.trait_type === "Student Name")?.value || 
+                            metadata.name.split("'s")[0];
+          const degree = metadata.attributes.find(a => a.trait_type === "Degree")?.value || 
+                        metadata.description.split("awarded")[0];
+          const year = metadata.attributes.find(a => a.trait_type === "Year of Passing")?.value || 
+                      new Date().getFullYear().toString();
+          const institution = metadata.attributes.find(a => a.trait_type === "Institution")?.value || 
+                            "Unknown Institution";
+
+          return {
+            tokenId: cert.tokenId.toString(),
+            contractAddress: CONTRACT_ADDRESS,
+            name: studentName,
+            degree: degree,
+            year: year,
+            institution: institution,
+            isValid: cert.isValid,
+            metadataURI: cert.metadataURI,
+            imageUrl: metadata.image
+          };
+        } catch (error) {
+          console.error(`Error fetching metadata for token ${cert.tokenId}:`, error);
+          return {
+            tokenId: cert.tokenId.toString(),
+            contractAddress: CONTRACT_ADDRESS,
+            name: "Unknown Student",
+            degree: "Unknown Degree",
+            year: new Date().getFullYear().toString(),
+            institution: "Unknown Institution",
+            isValid: cert.isValid,
+            metadataURI: cert.metadataURI,
+            imageUrl: ""
+          };
+        }
+      })
+    );
+
+    return certificatesWithMetadata;
   } catch (error) {
     console.error("Error getting owned certificates:", error);
     throw error;
   }
 };
 
-import { uploadToPinata, verifyPinataCredentials } from "@/lib/pinataClient";
+import { uploadToPinata, verifyPinataCredentials, fetchMetadata } from "@/lib/pinataClient";
 import { initEthersContractService } from "./ethersContractService";
 
 interface CertificateMetadata {
