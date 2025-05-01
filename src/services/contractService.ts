@@ -3,7 +3,7 @@ import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import { Signer } from "ethers";
 
 // Contract address on Base Sepolia (chainId 84532)
-const CONTRACT_ADDRESS = "0xCA36cd776d4A438a7894225299052ED9FEA53028";
+const CONTRACT_ADDRESS = "0xe7Ea633E7C9B6148eFF0ac32b98DfB8a37ed7B06";
 
 export const getSDK = async (signer?: Signer) => {
   if (signer) {
@@ -79,20 +79,26 @@ export const getOwnedCertificates = async (walletAddress: string, signer?: Signe
     const contract = await getContract(signer);
     const certs = await contract.call("getOwnerCertificates", [walletAddress]) as ContractCertificate[];
     
+    console.log("Raw contract certificates:", certs);
     const certificatesWithMetadata = await Promise.all(
       certs.map(async (cert) => {
         try {
+          console.log(`Fetching metadata for token ${cert.tokenId} from:`, cert.metadataURI);
           const metadata = await fetchMetadata(cert.metadataURI);
-          const studentName = metadata.attributes.find(a => a.trait_type === "Student Name")?.value || 
-                            metadata.name.split("'s")[0];
-          const degree = metadata.attributes.find(a => a.trait_type === "Degree")?.value || 
-                        metadata.description.split("awarded")[0];
-          const year = metadata.attributes.find(a => a.trait_type === "Year of Passing")?.value || 
+          console.log("Fetched metadata:", metadata);
+
+          // Safely extract attributes with fallbacks
+          const attributes = metadata.attributes || [];
+          const studentName = attributes.find(a => a.trait_type === "Student Name")?.value || 
+                            metadata.name?.split("'s")[0] || "Unknown Student";
+          const degree = attributes.find(a => a.trait_type === "Degree")?.value || 
+                        metadata.description?.split("awarded")[0] || "Unknown Degree";
+          const year = attributes.find(a => a.trait_type === "Year of Passing")?.value || 
                       new Date().getFullYear().toString();
-          const institution = metadata.attributes.find(a => a.trait_type === "Institution")?.value || 
+          const institution = attributes.find(a => a.trait_type === "Institution")?.value || 
                             "Unknown Institution";
 
-          return {
+          const transformedCert = {
             tokenId: cert.tokenId.toString(),
             contractAddress: CONTRACT_ADDRESS,
             name: studentName,
@@ -101,10 +107,14 @@ export const getOwnedCertificates = async (walletAddress: string, signer?: Signe
             institution: institution,
             isValid: cert.isValid,
             metadataURI: cert.metadataURI,
-            imageUrl: metadata.image
+            image: metadata.image || "",
+            attributes: metadata.attributes || []
           };
+          
+          console.log("Transformed certificate:", transformedCert);
+          return transformedCert;
         } catch (error) {
-          console.error(`Error fetching metadata for token ${cert.tokenId}:`, error);
+          console.error(`Error processing token ${cert.tokenId}:`, error);
           return {
             tokenId: cert.tokenId.toString(),
             contractAddress: CONTRACT_ADDRESS,
@@ -114,7 +124,8 @@ export const getOwnedCertificates = async (walletAddress: string, signer?: Signe
             institution: "Unknown Institution",
             isValid: cert.isValid,
             metadataURI: cert.metadataURI,
-            imageUrl: ""
+            image: "",
+            attributes: []
           };
         }
       })

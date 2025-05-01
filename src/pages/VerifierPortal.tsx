@@ -19,6 +19,10 @@ interface Certificate {
   metadataURI: string;
   contractAddress: string;
   isValid: boolean;
+  name: string;
+  degree: string;
+  year: string;
+  institution: string;
 }
 
 const VerifierPortal = () => {
@@ -68,7 +72,11 @@ const VerifierPortal = () => {
             tokenId: cert.tokenId.toString(),
             metadataURI: details.metadataURI,
             contractAddress: CONTRACT_ADDRESS,
-            isValid: cert.isValid
+            isValid: cert.isValid,
+            name: '',
+            degree: '',
+            year: '',
+            institution: ''
           };
           isValid = cert.isValid;
           
@@ -90,7 +98,11 @@ const VerifierPortal = () => {
           tokenId,
           metadataURI: details.metadataURI,
           contractAddress: CONTRACT_ADDRESS,
-          isValid
+          isValid,
+          name: '',
+          degree: '',
+          year: '',
+          institution: ''
         };
       }
       
@@ -225,10 +237,24 @@ const VerifierPortal = () => {
                               <span className="font-medium">{searchResult.tokenId}</span>
                               
                               <span className="text-gray-600">Metadata URI:</span>
-                              <span className="truncate">{searchResult.metadataURI}</span>
+                              <a 
+                                href={searchResult.metadataURI} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="truncate text-blue-600 hover:underline"
+                              >
+                                {searchResult.metadataURI}
+                              </a>
                               
                               <span className="text-gray-600">Contract:</span>
-                              <span className="truncate">{searchResult.contractAddress}</span>
+                              <a 
+                                href={`https://sepolia.basescan.org/address/${searchResult.contractAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate text-blue-600 hover:underline"
+                              >
+                                {searchResult.contractAddress}
+                              </a>
                             </div>
                             
                             <Button 

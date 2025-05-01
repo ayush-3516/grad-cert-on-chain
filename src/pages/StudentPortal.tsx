@@ -28,11 +28,14 @@ const StudentPortal = () => {
     setLoading(true);
     try {
       if (!walletAddress) {
+        console.log("No wallet address - cannot fetch certificates");
         setCertificates([]);
         return;
       }
       
+      console.log("Fetching certificates for wallet:", walletAddress);
       const ownedCerts = await getOwnedCertificates(walletAddress);
+      console.log("Received certificates:", ownedCerts);
       // Transform contract data to match CertificateCard expected format
       const transformedCerts = ownedCerts.map(cert => ({
         id: cert.tokenId,

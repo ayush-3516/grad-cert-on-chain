@@ -11,9 +11,14 @@ export interface Certificate {
   institution: string;
   isValid: boolean;
   tokenId: string;
-  imageUrl?: string;
+  image?: string;
+  imageUrl?: string; // Keeping for backward compatibility
   metadataURI?: string;
   contractAddress?: string;
+  attributes?: Array<{
+    trait_type: string;
+    value: string;
+  }>;
 }
 
 interface CertificateCardProps {
@@ -51,7 +56,11 @@ const CertificateCard = ({ certificate, onViewDetails, isStudent = false }: Cert
         </div>
         {certificate.tokenId && (
           <div className="text-xs text-gray-500 mt-2">
-            Token ID: {certificate.tokenId.substring(0, 6)}...{certificate.tokenId.substring(certificate.tokenId.length - 4)}
+            <span className="font-mono">
+              Token ID: {certificate.tokenId.length > 10 
+                ? `${certificate.tokenId.substring(0, 6)}...${certificate.tokenId.substring(certificate.tokenId.length - 4)}`
+                : certificate.tokenId}
+            </span>
           </div>
         )}
       </CardContent>
