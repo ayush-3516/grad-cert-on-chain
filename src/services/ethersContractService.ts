@@ -6,7 +6,7 @@ import {
 import GradCertNFTArtifact from '../../artifacts/contracts/GradCertNFT.sol/GradCertNFT.json';
 
 // Contract address on Base Sepolia (chainId 84532)
-export const CONTRACT_ADDRESS = "0xCA36cd776d4A438a7894225299052ED9FEA53028";
+export const CONTRACT_ADDRESS = "0xe7Ea633E7C9B6148eFF0ac32b98DfB8a37ed7B06";
 
 interface Certificate {
   tokenId: bigint;
